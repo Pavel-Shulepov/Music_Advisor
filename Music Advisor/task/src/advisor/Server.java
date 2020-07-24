@@ -1,83 +1,50 @@
 package advisor;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.Map;
 
 public class Server {
 
-    private String code;
+    HttpServer server;
+    String code;
+    boolean isCode = false;
 
-    public String getCode() {
-        return code;
+    public Server() throws IOException {
+        this.server = HttpServer.create();
+        server.bind(new InetSocketAddress(8080),0);
+        server.setExecutor(null);
     }
 
-    public void setCode(String code) {
-        this.code = code;
-    }
-
-    public HttpServer create() throws IOException {
-        HttpServer server = HttpServer.create();
-        server.bind(new InetSocketAddress(8080), 0);
-        server.createContext("/",
-                new LocaleHttpHandler()
-        );
-
-        return server;
-    }
-
-    /**
-     * returns the url parameters in a map
-     * @param query
-     * @return map
-     */
-    public static Map<String, String> queryToMap(String query){
-        Map<String, String> result = new HashMap<String, String>();
-        for (String param : query.split("&")) {
-            String pair[] = param.split("=");
-            if (pair.length>1) {
-                result.put(pair[0], pair[1]);
-            }else{
-                result.put(pair[0], "");
+    public void start() {
+        server.createContext("/", httpExchange -> {
+            try {
+                code = httpExchange.getRequestURI().getQuery();
+                if (code != null && code.startsWith("code")) {
+                    String message = "Got the code. Return back to your program.";
+                    code = code.replaceFirst("code=", "");
+                    isCode = true;
+                    httpExchange.sendResponseHeaders(200, message.length());
+                    httpExchange.getResponseBody().write(message.getBytes());
+                    httpExchange.close();
+                    this.stop();
+                } else {
+                    String message = "Not found authorization code. Try again.";
+                    httpExchange.sendResponseHeaders(200, message.length());
+                    httpExchange.getResponseBody().write(message.getBytes());
+                    httpExchange.close();
+                }
             }
-        }
-        return result;
-    }
-
-    private class LocaleHttpHandler implements HttpHandler {
-
-        @Override
-        public void handle(HttpExchange httpExchange) throws IOException {
-            String requestParamValue;
-            if("GET".equals(httpExchange.getRequestMethod())) {
-                requestParamValue = handleGetRequest(httpExchange);
-                handleResponse(httpExchange, requestParamValue);
+            catch (Exception e) {
+                e.printStackTrace();
             }
-        }
-
-        private String handleGetRequest(HttpExchange httpExchange) {
-            return httpExchange
-                    .getRequestURI()
-                    .toString()
-                    .split("\\?")[1]
-                    .split("=")[1];
-        }
-
-        private void handleResponse(HttpExchange httpExchange, String requestParamValue)  throws  IOException {
-            OutputStream outputStream = httpExchange.getResponseBody();
-            httpExchange.sendResponseHeaders(200, requestParamValue.length());
-            code = requestParamValue;
-            outputStream.write(requestParamValue.getBytes());
-            outputStream.flush();
-            outputStream.close();
-        }
-
+        });
+        server.start();
     }
 
+    public void stop() {
+        server.stop(1);
+        this.isCode = true;
+    }
 }

@@ -1,12 +1,11 @@
 package advisor;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
-
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Base64;
 import java.util.Scanner;
 
 public class Main {
@@ -37,23 +36,26 @@ public class Main {
 
     static final String GOODBYE = "---GOODBYE!---\n";
 
-    static final String AUTH_URL = "https://accounts.spotify.com/authorize?client_id=c0f908b3680043d7b7fd6b21f90b9a44&redirect_uri=http://127.0.0.1:45678&response_type=code";
+    static String spotifyUrl = "https://accounts.spotify.com";
+    static String authUrl = "/authorize?client_id=c0f908b3680043d7b7fd6b21f90b9a44&redirect_uri=http://localhost:8080&response_type=code";
+
     static boolean AUTH = false;
 
-    static String code = null;
-    static HttpServer server;
+    static String code = "";
+    static String token = "";
+
 
     public static void main(String[] args) throws IOException, InterruptedException {
+        if (args.length > 0 && args[1] != null ) {
+            spotifyUrl = args[1];
+        }
         var scanner = new Scanner(System.in);
         var action = "";
         while (!action.toLowerCase().equals("exit")) {
             action = scanner.nextLine();
             switch (action.toLowerCase()) {
                 case "auth":
-                    System.out.println("use this link to request the access code:");
-                    System.out.println(AUTH_URL);
-                    auth(args[1]);
-//                    AUTH = true;
+                    auth();
                     break;
                 case "new":
                     if (checkAuth()) {
@@ -92,48 +94,46 @@ public class Main {
         }
     }
 
-    private static void auth(String access) throws IOException {
-        server = HttpServer.create();
-        server.bind(new InetSocketAddress(45678), 0);
-        server.createContext("/", new GetHandler());
+    private static void auth() throws IOException, InterruptedException {
+        Server server = new Server();
         server.start();
+        System.out.println("use this link to request the access code:");
+        System.out.println(spotifyUrl + authUrl);
         System.out.println("waiting for code...");
+        while (!server.isCode) {
+            Thread.sleep(1000);
+        }
+        System.out.println(server.code);
+        code = server.code;
+        token();
     }
 
     private static boolean checkAuth() throws IOException {
         return AUTH;
     }
 
-    static class GetHandler implements HttpHandler {
-        public void handle(HttpExchange httpExchange) throws IOException {
-            var response = httpExchange.getRequestURI().getQuery();
-            if (response == null) {
-                String resp = "Not found authorization code. Try again.";
-                httpExchange.sendResponseHeaders(200, resp.length());
-                httpExchange.getResponseBody().write(resp.getBytes());
-                httpExchange.getResponseBody().close();
-            } else if (response.startsWith("code=")) {
-                code = response.replaceFirst("code=", "");
-                String resp = "Got the code. Return back to your program.";
-                httpExchange.sendResponseHeaders(200, resp.length());
-                httpExchange.getResponseBody().write(resp.getBytes());
-                httpExchange.getResponseBody().close();
-                stopServer();
-            }
-            Main.writeResponse(httpExchange, response);
-        }
-    }
+    private static void token() throws IOException, InterruptedException {
 
-    public static void writeResponse(HttpExchange httpExchange, String response) throws IOException {
-        httpExchange.sendResponseHeaders(200, response.length());
-        OutputStream os = httpExchange.getResponseBody();
-        os.write(response.getBytes());
-        os.close();
-    }
+        String uri = spotifyUrl + "/api/token";
 
-    public static void stopServer() {
-        System.out.println("code received\n");
-        server.stop(1);
+        System.out.println("code received\n" +
+                "making http request for access_token...");
+
+        HttpClient httpClient = HttpClient.newBuilder().build();
+
+        HttpRequest httpRequest = HttpRequest.newBuilder()
+                .header("Content-Type","application/x-www-form-urlencoded")
+                .header("Authorization"," Basic " + Base64.getEncoder().encodeToString(("c0f908b3680043d7b7fd6b21f90b9a44:f90c31ce1569413082142ea9c0a3fde9").getBytes()))
+                .uri(URI.create(uri))
+                .POST(HttpRequest.BodyPublishers.ofString("grant_type=authorization_code&code=" + code + "&redirect_uri=http://localhost:8080"))
+                .build();
+
+        HttpResponse<String> response =  httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+        token = response.body();
+        response.body();
+        System.out.println("response:");
+        System.out.println(token);
+        AUTH = true;
     }
 
 }
