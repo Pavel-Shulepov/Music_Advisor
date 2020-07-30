@@ -1,4 +1,4 @@
-package advisor;
+package advisor.utils;
 
 import com.sun.net.httpserver.HttpServer;
 
@@ -9,12 +9,20 @@ public class Server {
 
     HttpServer server;
     String code;
-    boolean isCode = false;
+    boolean codeReceive = false;
 
     public Server() throws IOException {
         this.server = HttpServer.create();
         server.bind(new InetSocketAddress(8080),0);
         server.setExecutor(null);
+    }
+
+    public boolean isCodeReceive() {
+        return codeReceive;
+    }
+
+    public String getCode() {
+        return code;
     }
 
     public void start() {
@@ -24,7 +32,7 @@ public class Server {
                 if (code != null && code.startsWith("code")) {
                     String message = "Got the code. Return back to your program.";
                     code = code.replaceFirst("code=", "");
-                    isCode = true;
+                    codeReceive = true;
                     httpExchange.sendResponseHeaders(200, message.length());
                     httpExchange.getResponseBody().write(message.getBytes());
                     httpExchange.close();
@@ -45,6 +53,6 @@ public class Server {
 
     public void stop() {
         server.stop(1);
-        this.isCode = true;
+        this.codeReceive = true;
     }
 }
