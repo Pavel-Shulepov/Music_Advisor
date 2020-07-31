@@ -13,7 +13,7 @@ import java.util.Base64;
 public class SpotifyClient {
 
     private String spotifyAccountUrl = "https://accounts.spotify.com";
-    private String spotifyApiUrl = "https://api.spotify.com/v1";
+    private String spotifyApiUrl = "https://api.spotify.com";
     private boolean isAuth = false;
     private Token token;
 
@@ -33,12 +33,12 @@ public class SpotifyClient {
     }
 
     public void categories() throws IOException, InterruptedException {
-        CategoriesShell categoriesShell = getResponse("/browse/categories", CategoriesShell.class);
+        CategoriesShell categoriesShell = getResponse("/v1/browse/categories", CategoriesShell.class);
         categoriesShell.getCategories().getItems().forEach(c -> System.out.println(c.getName()));
     }
 
     private Categories getCategories() throws IOException, InterruptedException {
-        return getResponse("/browse/categories?limit=50", CategoriesShell.class).getCategories();
+        return getResponse("/v1/browse/categories?limit=50", CategoriesShell.class).getCategories();
     }
 
     public void playlists(String name) throws IOException, InterruptedException {
@@ -54,16 +54,19 @@ public class SpotifyClient {
             System.out.println("Unknown category name.");
         } else {
             PlayListShell playListShell
-                    = getResponse(String.format("/browse/categories/%s/playlists", category.getId()), PlayListShell.class);
-            playListShell.getPlaylists().getItems().forEach(playlist -> {
-                System.out.println(playlist.getName());
-                playlist.getExternalUrls().forEach((key, value) -> System.out.println(value));
-            });
+                    = getResponse(String.format("/v1/browse/categories/%s/playlists", category.getId()), PlayListShell.class);
+            if (playListShell != null && playListShell.getPlaylists() != null) {
+                playListShell.getPlaylists().getItems().forEach(playlist -> {
+                    System.out.println(playlist.getName());
+                    playlist.getExternalUrls().forEach((key, value) -> System.out.println(value));
+                });
+            }
         }
     }
 
     public void newRealises() throws IOException, InterruptedException {
-        AlbumShell albumShell = getResponse("/browse/new-releases", AlbumShell.class);
+        AlbumShell albumShell = getResponse("/v1/browse/new-releases", AlbumShell.class);
+        if (albumShell == null) return;
         albumShell.getAlbums().getItems().forEach(album -> {
             System.out.println(album.getName());
             System.out.println(album.getArtists());
@@ -72,7 +75,7 @@ public class SpotifyClient {
     }
 
     public void featured() throws IOException, InterruptedException {
-        PlayListShell playListShell = getResponse("/browse/featured-playlists", PlayListShell.class);
+        PlayListShell playListShell = getResponse("/v1/browse/featured-playlists", PlayListShell.class);
         playListShell.getPlaylists().getItems().forEach(p -> {
             System.out.println(p.getName());
             p.getExternalUrls().forEach((key, value) -> System.out.println(value));
@@ -113,6 +116,12 @@ public class SpotifyClient {
                 .build();
 
         HttpResponse<String> response =  httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+
+        if (response.body().contains("error")) {
+            Gson gson = new Gson();
+            SpotifyError spotifyError = gson.fromJson(response.body(), SpotifyError.class);
+            System.out.println(spotifyError.getMessage());
+        }
 
         Gson gson = new Gson();
         return gson.fromJson(response.body(), clazz);

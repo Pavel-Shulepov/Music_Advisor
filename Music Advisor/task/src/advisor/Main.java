@@ -12,7 +12,6 @@ public class Main {
     private final static String authUrl = "/authorize?client_id=c0f908b3680043d7b7fd6b21f90b9a44&redirect_uri=http://localhost:8080&response_type=code";
     private final static SpotifyClient spotifyClient = new SpotifyClient();
 
-
     public static void main(String[] args) throws IOException, InterruptedException {
         if (args.length > 0 && args[1] != null ) {
              spotifyClient.setSpotifyAccountUrl(args[1], args[3]);

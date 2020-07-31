@@ -13,7 +13,7 @@ public class Server {
 
     public Server() throws IOException {
         this.server = HttpServer.create();
-        server.bind(new InetSocketAddress(8080),0);
+        server.bind(new InetSocketAddress(8080), 0);
         server.setExecutor(null);
     }
 
@@ -52,7 +52,7 @@ public class Server {
     }
 
     public void stop() {
-        server.stop(1);
+        server.stop(0);
         this.codeReceive = true;
     }
 }
