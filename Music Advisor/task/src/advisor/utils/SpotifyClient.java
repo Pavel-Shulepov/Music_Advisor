@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Base64;
+import java.util.List;
 
 public class SpotifyClient {
 
@@ -32,16 +33,28 @@ public class SpotifyClient {
         return isAuth;
     }
 
-    public void categories() throws IOException, InterruptedException {
+    public int categories(int limit, int offset) throws IOException, InterruptedException {
         CategoriesShell categoriesShell = getResponse("/v1/browse/categories", CategoriesShell.class);
-        categoriesShell.getCategories().getItems().forEach(c -> System.out.println(c.getName()));
+
+        List<Category> items = categoriesShell.getCategories().getItems();
+        Category category = items.get(offset);
+        System.out.println(category.getName());
+
+        System.out.printf("\n---PAGE %d OF %d---\n", (offset + limit) / limit, round(categoriesShell.getCategories().getTotal(), limit));
+        return categoriesShell.getCategories().getTotal();
+    }
+
+    private int round(int a, int b) {
+        int result = a / b;
+        if ((a % b) > 0) result++;
+        return result;
     }
 
     private Categories getCategories() throws IOException, InterruptedException {
         return getResponse("/v1/browse/categories?limit=50", CategoriesShell.class).getCategories();
     }
 
-    public void playlists(String name) throws IOException, InterruptedException {
+    public int playlists(String name, int limit, int offset) throws IOException, InterruptedException {
         Categories categories = getCategories();
         Category category = null;
         for (Category c : categories.getItems()) {
@@ -56,30 +69,38 @@ public class SpotifyClient {
             PlayListShell playListShell
                     = getResponse(String.format("/v1/browse/categories/%s/playlists", category.getId()), PlayListShell.class);
             if (playListShell != null && playListShell.getPlaylists() != null) {
-                playListShell.getPlaylists().getItems().forEach(playlist -> {
-                    System.out.println(playlist.getName());
-                    playlist.getExternalUrls().forEach((key, value) -> System.out.println(value));
-                });
+                List<Playlist> items = playListShell.getPlaylists().getItems();
+                Playlist playlist = items.get(offset);
+                System.out.println(playlist.getName());
+                playlist.getExternalUrls().forEach((key, value) -> System.out.println(value));
+                System.out.printf("\n---PAGE %d OF %d---\n", (offset + limit) / limit, round(playListShell.getPlaylists().getTotal(), limit));
+                return playListShell.getPlaylists().getTotal();
             }
         }
+        return 0;
     }
 
-    public void newRealises() throws IOException, InterruptedException {
+    public int newRealises(int limit, int offset) throws IOException, InterruptedException {
         AlbumShell albumShell = getResponse("/v1/browse/new-releases", AlbumShell.class);
-        if (albumShell == null) return;
-        albumShell.getAlbums().getItems().forEach(album -> {
-            System.out.println(album.getName());
-            System.out.println(album.getArtists());
-            album.getExternalUrls().forEach((key, value) -> System.out.println(value));
-        });
+        if (albumShell == null) return 0;
+        List<Album> items = albumShell.getAlbums().getItems();
+        Album album = items.get(offset);
+        System.out.println(album.getName());
+        System.out.println(album.getArtists());
+        album.getExternalUrls().forEach((key, value) -> System.out.println(value));
+        System.out.printf("\n---PAGE %d OF %d---\n", (offset + limit) / limit, round(albumShell.getAlbums().getTotal(), limit));
+        return albumShell.getAlbums().getTotal();
     }
 
-    public void featured() throws IOException, InterruptedException {
+    public int featured(int limit, int offset) throws IOException, InterruptedException {
         PlayListShell playListShell = getResponse("/v1/browse/featured-playlists", PlayListShell.class);
-        playListShell.getPlaylists().getItems().forEach(p -> {
-            System.out.println(p.getName());
-            p.getExternalUrls().forEach((key, value) -> System.out.println(value));
-        });
+
+        List<Playlist> items = playListShell.getPlaylists().getItems();
+        Playlist playlist = items.get(offset);
+        System.out.println(playlist.getName());
+        playlist.getExternalUrls().forEach((key, value) -> System.out.println(value));
+        System.out.printf("\n---PAGE %d OF %d---\n", (offset + limit) / limit, round(playListShell.getPlaylists().getTotal(), limit));
+        return playListShell.getPlaylists().getTotal();
     }
 
     public void spotifyAuth(String code) throws IOException, InterruptedException {

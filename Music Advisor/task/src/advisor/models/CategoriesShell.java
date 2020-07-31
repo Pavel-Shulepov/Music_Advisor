@@ -1,6 +1,6 @@
 package advisor.models;
 
-public class CategoriesShell {
+public class CategoriesShell implements ISpotify {
 
     private final Categories categories;
 
